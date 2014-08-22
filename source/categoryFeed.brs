@@ -79,11 +79,20 @@ Function load_packages(conn As Object) As Dynamic
     topNode.Title = "root"
     topNode.isapphome = true
 
-    for each entity in json_response.entities
+    allBundles = CreateObject("roArray", 100, true)
+    for each package in json_response.entities
+      for each bundle in package.entities
+        allBundles.Push(bundle)
+      next
+    next
+
+    for each entity in allBundles
       'title
       o = ParseJSONCollection(entity)
-      topNode.AddKid(o)
-      AddPackagesToEntity(conn, o, entity)
+      if o <> invalid
+        topNode.AddKid(o)
+        AddPackagesToEntity(conn, o, entity)
+      endif
     next
 
     Dbg("Traversing: ", m.Timer)
@@ -151,6 +160,11 @@ End Function
 ' "Category" nodes.
 '***********************************************************
 Function ParseJSONCollection(entity As Object) As dynamic
+
+    if entity.properties = invalid
+      return invalid
+    endif
+
     o = init_category_item()
 
     print "ParseJSONCollection: " + entity.properties.title
@@ -159,6 +173,7 @@ Function ParseJSONCollection(entity As Object) As dynamic
     o.Title = entity.properties.title
     o.Description = entity.properties.title
     o.ShortDescriptionLine1 = entity.properties.title
+    o.json_properties = entity.properties
 
     for each subentity in entity.entities
       ' This will read the wurl-bundles
@@ -177,6 +192,10 @@ Function ParseJSONCollection(entity As Object) As dynamic
         'print entity.entities[0].properties.topSeries
         if o_kid <> invalid
           o.AddKid(o_kid)
+          if o.SDPosterURL = "http://s3.amazonaws.com/wurl-alma/default-app-thumbnail.png"
+            o.SDPosterURL = subentity.properties.thumbnails.default.url
+            o.HDPosterURL = subentity.properties.thumbnails.default.url
+          endif
         endif
       endif
     next
@@ -192,7 +211,7 @@ Function ParseJSONSeries(entity as Object) as dynamic
   o.Title = entity.properties.title
   o.Description = entity.properties.title
   o.ShortDescriptionLine1 = entity.properties.title
-  o.Feed = entity.links[0].href ' The HREF
+  o.Feed = entity.links[0].href+"/episodes" ' The HREF
   return o
 
 End Function
@@ -252,3 +271,4 @@ Sub is_entity_of_class(entity As Object, expected_class as String) As Boolean
     endif
   next
 End Sub
+
